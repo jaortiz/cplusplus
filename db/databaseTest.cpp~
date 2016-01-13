@@ -1,0 +1,41 @@
+#include <iostream>
+#include <string>
+
+#include "fraction.h"
+#include "utility.h"
+#include "record.h"
+#include "database.h"
+
+using namespace std;
+//g++ -std=c++11 -Wall -Werror -O2 -o databaseTest databaseTest.cpp fraction.cpp
+int main() {
+
+   Database<string> db;
+   db.read(cin);
+   db.write(cout,AllRecords);
+
+   cout << "number of records: " << db.numRecords() << endl;
+   cout << "number of selected records: " << db.numSelected() << endl;
+
+   //selection all test
+   cout << endl << "SELECT ALL/DESELECT ALL TEST" << endl;
+   db.selectAll();
+   cout << "number of selected records: " << db.numSelected() << endl;
+   db.deselectAll();
+   cout << "number of selected records: " << db.numSelected() << endl;
+
+   //specific select test
+   cout << endl << "SELECT TEST" << endl;
+   db.select(Add, "office hours", Equal, "Tues 7-12pm");
+   cout << "number of selected records: " << db.numSelected() << endl;
+   
+   db.select(Refine, "e-mail", Equal, "potter@cse.unsw.edu.au");
+   cout << "number of selected records: " << db.numSelected() << endl;
+
+   //delete test
+   cout << endl << "DELETE TEST" << endl;
+   //db.deleteRecords(AllRecords);
+   db.deleteRecords(SelectedRecords);
+   cout << "number of records: " << db.numRecords() << endl;
+   cout << "number of selected records: " << db.numSelected() << endl;
+}

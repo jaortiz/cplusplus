@@ -1,0 +1,31 @@
+//test 4 but with copy and move assignment
+// copy and move assignment operators
+//g++ -std=c++11 -Wall -Werror -O2 -o test41 SMatrix.cpp test41.cpp
+
+#include <iostream>
+#include "SMatrix.h"
+
+using namespace std;
+
+int main(void) {
+  SMatrix m1(2, 3);
+
+  for (SMatrix::size_type i = 0; i < 2; ++i)
+    for (SMatrix::size_type j = 0; j < 3; ++j)
+      m1.setVal(i, j, i+j);
+
+  SMatrix m2;  
+   m2 = m1; //copy assignment;
+
+  cout << "m1: " << endl << m1 << endl;
+  cout << "m2: " << endl << m2 << endl;
+
+  SMatrix m3;
+  m3 = move(m2);  //move assignment
+
+  cout << "m1: " << endl << m1 << endl;
+  cout << "m2: " << endl << m2 << endl;
+  cout << "m3: " << endl << m3 << endl;
+
+  return 0;
+}

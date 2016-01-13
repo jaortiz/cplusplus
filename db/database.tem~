@@ -1,0 +1,232 @@
+/**
+ *Name: Jeremy Ortiz z3461601
+ *
+ *Database Class Template
+ */
+
+
+/**
+ *Default Constructor for the Database class
+ *
+ */
+template <class value>
+Database<value>::Database() { 
+   numSelected_ = 0;    //initial number of selected records
+}
+
+
+/**
+ *Destructor for the Database class
+ *
+ */
+template <class value>
+Database<value>::~Database() { }
+
+
+/**
+ *Method to return the number of records
+ *
+ */
+template <class value>
+int Database<value>::numRecords() const {
+   return records_.size();    //return records vector size
+}
+
+
+/**
+ *Method to return the number of records selected
+ *
+ */
+template <class value>
+int Database<value>::numSelected() const {
+   return numSelected_;
+}
+
+
+/*
+ *Method to output the entire database to the output stream depending on the scope. Scope tells 
+ *whether or not AllRecords or SelectedRecords enum
+ *
+ */
+template <class value>
+void Database<value>::write(ostream& out, DBScope scope) const {
+   
+   switch(scope) {
+
+      case AllRecords:  //Write all records in database to output stream
+         for(auto it = records_.cbegin(); it != records_.cend(); ++it) {
+            out << *it;
+         }
+      break;
+
+      case SelectedRecords:      //write all selected records in the database to output stream
+         if(numSelected_ == 0) {    //check whether any of the records have been selected
+            out << "No records selected" << endl;
+         } else {
+            for(auto it = records_.cbegin(); it != records_.cend(); ++it) {
+               if(it->isSelected()) {
+                  out << *it;
+               }
+            }
+         }
+      break;
+   }
+}
+
+/*
+ *Method to read in new records from stream
+ *Deletes all current records and reads and stores in the new set given the input stream
+ *
+ */
+template <class value>
+void Database<value>::read(istream& in) {
+   deleteRecords(AllRecords); //deleting all current records
+   
+   Record<value> newRecord;   //create temporary record
+   char temp;
+   while(in >> temp) {
+      if(temp == '{') {    //start of a record
+         in.putback(temp); //put back '{' character for reading in record class
+         in >> newRecord;
+         if(newRecord.size() > 0) {    //check to make sure empty records aren't added
+            records_.push_back(newRecord);   //add new record to vector
+         }
+         newRecord.clearRecord();      //clear temp record for re-use
+      }
+   }
+}
+
+
+/*
+ *Method to permanently delete records from the database depending on the scope of
+ *AllRecords or selectedRecords.
+ *
+ */
+template <class value>
+void Database<value>::deleteRecords(DBScope scope) {
+   switch(scope) {
+      case AllRecords:
+         records_.clear();    //clear all records
+         numSelected_ = 0;
+      break;
+
+      case SelectedRecords:
+         auto it = records_.begin();
+         while(numSelected_ > 0) {     //delete selected records until none remain
+            if(it->isSelected()) {
+               it = records_.erase(it);
+               --numSelected_;
+            } else {
+               ++it;       //increment iterator
+            }  
+         }
+      break;
+   }
+}
+
+
+/*
+ *Method to select all records in the database
+ *
+ */
+template <class value>
+void Database<value>::selectAll() {
+   for(auto it = records_.begin(); it != records_.end(); ++it) {
+      if(!it->isSelected()) {      //if not selected select it
+         it->setSelected(true);     //set record selection to true
+      }
+   }
+   numSelected_ = records_.size();     
+}
+
+
+/*
+ *Method to deselect all the records in the database
+ *
+ */
+template <class value>
+void Database<value>::deselectAll() {
+   for(auto it = records_.begin(); it != records_.end(); ++it) {
+      if(it->isSelected()) {       //if selected, deselect it
+         it->setSelected(false);    //set record selection to false
+      }
+   }
+   numSelected_ = 0;
+}
+
+
+/*
+ *Method to select records in the database depending on the query and selection operator enum
+ *
+ */
+template <class value>
+void Database<value>::select(DBSelectOperation selOp, const string& attr, DBQueryOperator op, const value& val) {
+
+   switch(selOp) {
+
+      //Selects all, but should be handled in interactive.cpp but is here in case
+      case All:   
+         for(auto it = records_.begin(); it != records_.end(); ++it) {
+             if(!it->isSelected()) {      //if not selected select it
+               it->setSelected(true);     //set record selection to true
+            }
+         }
+         numSelected_ = records_.size();
+      break;   
+
+      //deselects all, but should be handled in interactive.cpp but is here in case
+      case Clear:
+         for(auto it = records_.begin(); it != records_.end(); ++it) {
+             if(it->isSelected()) {       //if selected, deselect it
+               it->setSelected(false);    //set record selection to false
+            }
+         }
+         numSelected_ = 0;
+      break;
+
+      //Add all matches to current selection
+      case Add:
+         for(auto it = records_.begin(); it != records_.end(); ++it) {
+            if(it->matchesQuery(attr, op, val)) {     //if it matches the query and its not
+               if(!it->isSelected()) {                //already selected, select it
+                  it->setSelected(true);
+                  ++numSelected_;
+               }
+            }
+         }
+      break;   
+
+      //remove all matches from the current selection
+      case Remove:
+         for(auto it = records_.begin(); it != records_.end(); ++it) {
+            if(it->matchesQuery(attr, op, val)) {     //if it matches the query 
+               if(it->isSelected()) {        //if record is selected, deselect it
+                  it->setSelected(false);
+                  --numSelected_;
+               }
+            }
+         }
+      break;
+
+      //Only those who meet the match are selected
+      case Refine:
+         for(auto it = records_.begin(); it != records_.end(); ++it) {
+            if(it->matchesQuery(attr, op, val)) {     //if matches the query, select it
+               if(!it->isSelected()) {                //if not already selected
+                  it->setSelected(true);
+                  ++numSelected_;
+               }
+            } else if(it->isSelected()) {    //otherwise if it is selected, deselect it
+               it->setSelected(false);
+               --numSelected_;
+            }
+         }
+      break;
+
+   }
+}
+
+
+
+
+

@@ -1,0 +1,212 @@
+/**
+ *Name: Jeremy Ortiz z3461601
+ *
+ *Record Class Template
+ */
+
+/**
+ *Default Constructor for the Record class
+ *
+ */
+template <class value>
+Record<value>::Record() {
+   selected_ = false;      //Record is not selected
+}
+
+
+/**
+ *Destructor for the Record class
+ *
+ */
+template <class value>
+Record<value>::~Record() { }
+
+
+/**
+ *Method to read in the record values
+ *
+ */
+template <class value>
+void getInfo(istream& stream,value& val) {
+   stream >> val;    //read in pair value 
+}
+
+
+/**
+ *Template specialisation to handle reading in string values as well as to handle
+ *reading the pair attribute.  
+ *
+ */
+template <>
+void getInfo<string>(istream& stream,string& attribute)  {  
+   getline(stream, attribute, '=');    //read until the '=' character for the pair attribute
+                                         //or until the newline character for string value
+   TrimString(attribute);     //Utility helper method to remove leading and trailing whitespaces
+                  
+}
+
+
+/**
+ *Output operator overloading
+ *
+ */
+template <class value>
+ostream& operator<<(ostream& out, const Record<value>& r) {
+   
+   out << "{ " << endl;
+   for(auto it = r.pairs_.cbegin(); it != r.pairs_.cend();++it) {
+      out << " " << it->first << " = " << it->second << endl;
+   }
+   out << "}" << endl;
+   return out;
+}
+
+
+/**
+ *Input operator overloading
+ *
+ */
+template <class value>
+istream& operator>>(istream& in, Record<value>& r) {  
+   string str;
+   bool start = false;
+   while(getline(in,str)) {
+      if(str.compare("{") == 0) {      //start of the record
+         start = true;
+      } else if(str.compare("}") == 0) {  //end of the record
+         break;  
+      } else if(start && !str.empty()) {  //check to make sure empty lines aren't added
+         stringstream iss(str);     //using the string line as a stream for easier parsing
+         pair<string,value> info;
+         getInfo(iss,info.first);   //read attribute
+         getInfo(iss,info.second);  //read value
+         r.pairs_.push_back(info);  //add pair to record
+      }
+   }
+   return in; 
+}
+
+/**
+ *Method to return selected status of the record
+ *
+ */
+template <class value>
+bool Record<value>::isSelected() const {
+   return selected_;
+}
+
+/**
+ *Method to set the selected status of the record
+ *
+ */
+template <class value>
+void Record<value>::setSelected(bool val) {
+   selected_ = val;
+}
+
+
+/**
+ *Method to check if any attribute-value pairs match a given query
+ *
+ */
+template <class value>
+bool Record<value>::matchesQuery(const string& attr,DBQueryOperator op,const value& want) const {
+   bool match = false;
+   
+   switch(op) {      //switch statement depending on the DBQueryOperator enum
+      
+      case Equal:    //Case where the query is equal to any of the pairs
+         if(attr.compare("*") == 0) {     //Only check the pairs' values
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->second == want) {   //if value is equal to query
+                  match = true;
+                  break;      //if found a match, break early
+               }
+            }
+         } else {    //otherwise check for matching attribute and value
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->first.compare(attr) == 0 && it->second == want) {
+                  match = true;
+                  break;      //break early
+               }
+            }
+         }
+         break;
+      
+      case NotEqual:    //case where query is not equal to any of the pairs
+         match = true;
+         if(attr.compare("*") == 0) {     //Only check the pairs' values
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->second == want) {   //if a value is equal then not equal query is false
+                  match = false;          
+                  break;      //break early
+               }
+            }
+         } else {    //check if none of the attribute-value pairs match
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->first.compare(attr) == 0 && it->second == want) {
+                  match = false;
+                  break;   //break early
+                
+               }
+            }
+         }
+         break;
+      
+      case LessThan:    //case whether or not there is a value less than the query
+         if(attr.compare("*") == 0) {  //only check the pairs' value
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->second < want) {
+                  match = true;
+                  break;      //break early
+               }
+            }
+         } else {    //check if any attribute-value pairs are less than the query
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->first.compare(attr) == 0 && it->second < want) { //check for value
+                  match = true;                                         //less than query
+                  break;      //break early
+               }
+            }
+         }
+         break;
+
+      case GreaterThan: //case whether or not there is value greater than the query
+         if(attr.compare("*") == 0) {  //only check the pairs' values
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->second > want) {
+                  match = true;
+                  break;      //break early
+               }
+            }
+         } else {    //check if any attribute-value pairs are greater than the query
+            for(auto it = pairs_.cbegin(); it != pairs_.cend(); ++it) {
+               if(it->first.compare(attr) == 0 && it->second > want) {
+                  match = true;
+                  break;      //break early
+               }
+            }
+         }
+         break;
+   }
+   
+   return match;
+}
+
+
+/**
+ *Method to clear the record, leaving an empty record.
+ *
+ */
+template <class value>
+void Record<value>::clearRecord() {
+   pairs_.clear();
+   selected_ = false;
+}
+
+
+template <class value>
+int Record<value>::size() {
+   return pairs_.size();
+}
+

@@ -1,0 +1,588 @@
+/**
+ *Btree template 
+ *Contains all the btree class member functions and the node class member functions
+ *
+ *By Jeremy Ortiz (z3461601)
+ */
+
+/**
+ *Default Constructor
+ *If not given a size, default max node size is 40
+ */
+template <typename T>
+btree<T>::btree(size_t maxNodeElems) {
+   maxNodeSize_ = maxNodeElems;
+   root_ = new Node();        //create new root node
+   root_->setParent(nullptr);    //set the root node parent pointer to nullptr
+}
+
+
+/**
+ *Destructor
+ *
+ */
+template <typename T>
+btree<T>::~btree() {
+   //cout << "Root Size: " << root_->size() << endl;
+   delete root_;
+}
+
+
+/**
+ *Copy Constructor
+ *Creates a copy of a given tree using copy semantics that leave the 
+ *original unchanged
+ */
+template <typename T>
+btree<T>::btree(const btree<T>& original) { 
+   maxNodeSize_ = original.maxNodeSize_;
+   root_ = new Node(*original.root_);
+}
+
+
+/**
+ *Move Constructor
+ *creates a copy of a given tree using move semantics, that moves the contents from 
+ *original to new, but leaves the original in a valid state
+ */
+template <typename T>
+btree<T>::btree(btree<T>&& original) {
+   maxNodeSize_ = original.maxNodeSize_;  //copying max node size
+   root_ = original.root_; //copying the pointers
+   original.root_ = nullptr;  //original tree root now points to nullptr
+
+}
+
+
+/**
+ *Copy Assignment
+ *Overloading the = operator in order to use copy assignment for the tree. Via copy semantics
+ *new tree becomes a copy of rhs and returns a reference to the new tree
+ */
+template <typename T>
+btree<T>& btree<T>::operator=(const btree<T>& rhs) {
+   if(this != &rhs) {
+      maxNodeSize_ = rhs.maxNodeSize_;
+      delete root_;
+      root_ = nullptr;
+      root_ = new Node(*rhs.root_);
+   }
+   return *this;
+}
+
+
+/**
+ *Move assignment
+ *overloading the = opeartor to use move assignment for the tree. Via move semantics
+ *the contents of rhs are moved into the new tree and rhs is left in an empty but 
+ *valid state
+ *
+ *@return returns a reference to the new tree
+ */
+template <typename T>
+btree<T>& btree<T>::operator=(btree<T>&& rhs) {
+   if(this != &rhs) {
+      maxNodeSize_ = rhs.maxNodeSize_;
+      delete root_;
+      root_ = rhs.root_;   //copying pointers 
+      rhs.root_ = nullptr;
+   }
+   return *this;
+}
+
+
+/**
+ *Overloading output operator
+ *Puts a breadth first traversal into output stream
+ */
+template <typename T>
+ostream& operator<<(ostream& os, const btree<T>& tree) {
+   tree.printTree(os);
+   return os;
+}
+
+
+/**
+ *Begin
+ *Finds the beginning of the tree i.e.lowest value element in the tree
+ *
+ *@return returns an iterator to the beginning element
+ */
+template <typename T>
+btree_iterator<T> btree<T>::begin() const {
+   Node *curr = root_;
+   while(curr->hasChildAt(0)) {      //Go as far left as we can to find smallest element
+      curr = curr->getChild(0);
+   }
+   return btree_iterator<T>(curr);
+}
+
+
+/**
+ *End
+ *Finds the end of the tree i.e. the largest value element in the tree
+ *
+ *@return returns an iterator to the one 'element' past the end of the tree
+ */
+template <typename T>
+btree_iterator<T> btree<T>::end() const {
+
+   Node *curr = root_;
+   while(curr->hasChildAt(curr->size())) {   //Go as far right as we can to find the largest 
+      curr = curr->getChild(curr->size());   //element
+   }
+
+   return btree_iterator<T>(curr, curr->size());
+}
+
+/**
+ *cbegin
+ *Finds the beginning of the tree i.e.lowest value element in the tree
+ *
+ *@return returns a const iterator to the beginning element
+ */
+template <typename T>
+const_btree_iterator<T> btree<T>::cbegin() const {
+   Node *curr = root_;
+   while(curr->hasChildAt(0)) {        //Go as far left in the tree as possible
+      curr = curr->getChild(0);
+   }
+   return const_btree_iterator<T>(curr);
+}
+
+
+/**
+ *cend
+ *Finds the end of the tree i.e. the largest value element in the tree
+ *
+ *@return returns a const iterator to the one 'element' past the end of the tree
+ */
+template <typename T>
+const_btree_iterator<T> btree<T>::cend() const {
+
+   Node *curr = root_;
+   while(curr->hasChildAt(curr->size())) {      //Go as far right as possible
+      curr = curr->getChild(curr->size());
+   }
+
+   return const_btree_iterator<T>(curr, curr->size());
+}
+
+
+/**
+ *Insert
+ *Inserts an element into the tree.
+ *
+ *@return Return a pair with an iterator to the inserted element and true
+ *        If an element is already in the tree, return a pair with an iterator to the matching
+ *        element and false
+ */
+template <typename T>
+pair<btree_iterator<T>, bool> btree<T>::insert(const T& elem) {
+  
+   auto it = find(elem);
+   if(it == end()) {  //check whether or not an element is already in the tree
+
+      //find the node in which we want to insert into
+      Node *insertNode = findInsertNode(elem);
+      
+      if(insertNode->size() != maxNodeSize_) {  //if node we want to insert into isn't full
+         int insertPos = insertNode->insertElement(elem);
+         
+         return make_pair(btree_iterator<T>(insertNode,insertPos),true);
+         
+      } else { //node is saturated/fll create new child
+         int childPos = insertNode->addChild(elem);
+         return make_pair(btree_iterator<T>(insertNode->getChild(childPos),childPos),true);
+      }
+   }
+   //if element is already contained in tree
+   return make_pair(it,false);
+}
+
+
+/**
+ *Find
+ *Search for an element in the tree
+ *
+ *@return Return an iterator to the element if found 
+ *        If no element matches return a non-const iterator to the end of the tree
+ */
+template <typename T>
+btree_iterator<T> btree<T>::find(const T& elem) {
+   Node *curr = root_;
+   int search = curr->findElement(elem); 
+   if(search != notFound) { //search root for element
+      return btree_iterator<T>(curr,search);
+   } else if(root_->isLeaf()) {  //if root is unsaturated 
+      return this->end();
+   } else {
+      int expectedPos = curr->findChildPos(elem); //performing a "binary" search
+      while(curr->hasChildAt(expectedPos)) {       //check if there is a child at the expected 
+         curr = curr->getChild(expectedPos);       //insert position
+         search = curr->findElement(elem); 
+         if(search != notFound) {               //if element is found
+            return btree_iterator<T>(curr,search);
+         } else {
+            expectedPos = curr->findChildPos(elem);   
+         }
+      }
+      return this->end();
+   }
+}
+
+
+/**
+ *Find
+ *Search for an element in the tree, 
+ *
+ *@return Return a const iterator to the element if found 
+ *        If no element matches return a const iterator to the end of the tree
+ */
+template <typename T>
+const_btree_iterator<T> btree<T>::find(const T& elem) const {
+   Node *curr = root_;
+   int search = curr->findElement(elem); 
+   if(search != notFound) { //search root for element
+      return const_btree_iterator<T>(curr,search);
+   } else if(root_->isLeaf()) {  //if root is unsaturated 
+      return this->cend();
+   } else {
+      int expectedPos = curr->findChildPos(elem); //performing a "binary" search
+      while(curr->hasChildAt(expectedPos)) {       //check if there is a child at the expected 
+         curr = curr->getChild(expectedPos);       //insert position
+         search = curr->findElement(elem); 
+         if(search != notFound) {               
+            return const_btree_iterator<T>(curr,search);
+         } else {
+            expectedPos = curr->findChildPos(elem);   
+         }
+      }
+      return this->cend();
+   }
+}
+
+
+/**
+ *Helper method to find the node to we want to insert an element into.
+ *
+ *@param element we want to insert
+ *@return Return a Node pointer to the node we want to insert the element into
+ */
+template <typename T>
+typename btree<T>::Node* btree<T>::findInsertNode(const T& elem) {
+   
+   Node *curr = root_;
+
+   if(!curr->isLeaf()) {   //if the node has no children i.e. the root node
+
+      int elemPos = curr->findChildPos(elem);   //get the expected insert position
+      
+      while(curr->hasChildAt(elemPos)) {  //while there are children at the expected insert pos
+         curr = curr->getChild(elemPos);  //move to that node
+         elemPos = curr->findChildPos(elem); //get expected insert position
+      }   
+   }
+   return curr;
+}
+
+
+/**
+ *Method to perform a breadth first traversal of the tree 
+ *
+ *@param output stream 
+ *@return Return the output stream, containing the BFS tree traversal
+ */
+template <typename T>
+void btree<T>::printTree(ostream& os) const {
+   queue<Node*> nodeQueue; //creating queue for BFS
+   Node *curr;   
+   nodeQueue.push(root_);  //adding root to queue
+   
+   while(!nodeQueue.empty()) {   //while there are still more nodes to visit
+      curr = nodeQueue.front();  //retrieve the front node
+      curr->print(os);           //place into output stream
+      nodeQueue.pop();           //remove first element in queue
+      auto children = curr->getChildren();   
+      for(auto it = children.begin(); it != children.end(); ++it) {  //add all current nodes
+         nodeQueue.push(it->second);                                 //children to queue
+      }
+   }
+
+}
+//----------------------------------------------------------------------------------
+//Node Class
+//----------------------------------------------------------------------------------
+
+/**
+ *Destructor
+ *
+ */
+template <typename T>
+btree<T>::Node::~Node() {
+   for(auto it = children_.begin();it != children_.end(); ++it) { //delete all the children nodes
+      delete it->second;   
+   }
+}
+
+
+/**
+ *Copy Constructor
+ *Creates a copy of a given Node using copy semantics that leave the 
+ *original unchanged
+ */
+template <typename T>
+btree<T>::Node::Node(const Node &original) {
+   
+   //cout << "Node copy constructor" << endl;
+
+   elements_ = original.elements_;
+   parent_ = original.parent_;
+   parentPos_ = original.parentPos_;
+   children_.clear();
+   for(auto it = original.children_.begin(); it != original.children_.end(); ++it) {
+      children_[it->first] = new Node(*it->second);
+   }
+   
+   
+}
+
+
+/**
+ *Copy Assignment
+ *Overloading the = operator in order to use copy assignment for the tree. Via copy semantics
+ *new tree becomes a copy of rhs and returns a reference to the new tree
+ */
+template <typename T>
+typename btree<T>::Node& btree<T>::Node::operator=(const Node &rhs) {
+   //cout << "Node copy assignment" << endl;
+   if(this != &rhs) {
+      elements_ = rhs.elements_;
+      parent_ = rhs.parent_;
+      parentPos_ = rhs.parentPos_;
+      children_.clear();
+      for(auto it = rhs.children_.begin(); it != rhs.children_.end(); ++it) {
+         
+         children_[it->first] = new Node(*(it->second));
+      }
+   }
+   return *this;
+}
+
+
+/**
+ *Getter method to return the size of the node i.e. number of elements in the node
+ *
+ *@return Return the size of the node
+ */
+template <typename T>
+int btree<T>::Node::size() {
+   return elements_.size();
+}
+
+
+/**
+ *Checks whether or not a node is a leaf by checking if it has any children
+ * 
+ *@return true or false depending if the node has children
+ */
+template <typename T>
+bool btree<T>::Node::isLeaf() {
+   return children_.empty();
+}
+
+
+/**
+ *Finds the position an element should be added as a child
+ *
+ *@param The element to added as a child
+ *@return Return the child position of the element
+ */
+template <typename T>
+int btree<T>::Node::findChildPos(const T& element) {
+   auto it = lower_bound(elements_.begin(),elements_.end(),element); //finding child position
+   return (it - elements_.begin());
+}
+
+
+/*
+ *Method to check whether or not a node has a child at a specified position
+ *
+ *@param Position to check if the node has a child at that position
+ *@return true or false whether or not there is a child at the position
+ */
+template <typename T>
+bool btree<T>::Node::hasChildAt(int pos) {
+   bool hasChild = false;
+   if(children_.find(pos) != children_.end()) { //if the iterator isnt the end of the map
+      hasChild = true;                          //child found at the given position
+   }
+   return hasChild;
+}
+
+
+/*
+ *Method to insert element into node. Only for unsaturated nodes i.e. not full nodes
+ *
+ *@param Element to be inserted into the node
+ *@return the position that the element was inserted into the node
+ */
+template <typename T>
+int btree<T>::Node::insertElement(const T& element) {
+   
+   auto it = lower_bound(elements_.begin(),elements_.end(),element);
+   elements_.insert(it,element);
+   
+   return it - elements_.begin();
+}
+
+
+/**
+ *Getter method to return the child node given the position. Before calling this, need 
+ *check if there is a child at the given position.
+ *
+ *@param position of the child node we want
+ *@return Returns the child node
+ */
+template <typename T>
+typename btree<T>::Node* btree<T>::Node::getChild(int childPos) {
+   return children_.at(childPos);
+}
+
+
+/**
+ *Setter method to set current nodes parent node
+ *
+ *@param parent node
+ */
+template <typename T>
+void btree<T>::Node::setParent(Node *parent) {
+   parent_ = parent;
+}
+
+
+/**
+ *Setter method to the current nodes parent position in its own node. Used for iteration.
+ *
+ *@param Parents position in its own node
+ */
+template <typename T>
+void btree<T>::Node::setParentPos(int parent) {
+   parentPos_ = parent;
+}
+
+
+/**
+ *Adds a child to the tree, in this case adds a child node to the map of this node.
+ *
+ *@param element to be added as a child
+ *@return Return the position that the child was inserted
+ */
+template <typename T>
+int btree<T>::Node::addChild(const T& element) {
+   int childPos = findChildPos(element);  //getting insert position
+   Node *child = new Node();     //creating new child node
+   
+   child->insertElement(element);   //adding element to child node
+   child->setParent(this);          //setting child nodes parent to current node
+   child->setParentPos(childPos);
+   children_[childPos] = child;     //adding child to tree/map
+
+   //cout << "childPos: " << child->getParentPos() << " element: " << element << endl;
+   return childPos;
+}
+
+
+/*
+ *Returns the element of a given position in the node
+ *
+ *@return Return the element at the given position
+ */
+template <typename T>
+T& btree<T>::Node::element(size_t valPos) {
+   return elements_.at(valPos);
+}
+
+
+/**
+ *Getter method to return node parent
+ *
+ *@return Return the nodes parent
+ */
+template <typename T>
+typename btree<T>::Node* btree<T>::Node::getParent() {
+   return parent_;
+}
+
+
+/*
+ *Getter method to get parent node position in its own node
+ *
+ *@return Return parent nodes position
+ */
+template <typename T>
+int btree<T>::Node::getParentPos() {
+   return parentPos_;
+}
+
+
+/**
+ *Checks if a node has a parent node. Used in increment/decrement, iteration.
+ *
+ *@return true or false whether or not the node has a parent
+ */
+template <typename T>
+bool btree<T>::Node::hasParent() {
+   bool hasParent = false;
+   if(parent_ != nullptr) {
+      hasParent = true;
+   }
+   return hasParent;
+}
+
+
+/*
+ *Checks if an element is contained within the node
+ *if found, return the position of the element in the vector
+ *otherwise return notFound (-1)
+ *
+ *@param element to search for in node
+ *@return Return element position or notFound
+ */
+template <typename T>
+int btree<T>::Node::findElement(const T& element) {
+   int position = notFound;
+   auto it = std::find(elements_.begin(), elements_.end(),element); //using find algorithm
+   if(it != elements_.end()) {   //if found
+      position = it - elements_.begin();  //getting position as an int
+   }
+   return position;
+}
+
+
+/**
+ *Print elements
+ */
+template <typename T>
+void btree<T>::Node::print() const {
+   //cout << "Root Node elements" << endl;
+   for(int i = 0; i < elements_.size(); ++i) {
+      cout << i << ": " << elements_.at(i) << endl;
+   }
+}
+
+
+/*
+ *Put node elements onto output stream
+ *
+ *@param Output stream 
+ */
+template <typename T>
+void btree<T>::Node::print(ostream& os) {
+   for(int i = 0;i < elements_.size(); ++i) {
+      os << elements_.at(i) << " ";
+   }
+}
+
+
+

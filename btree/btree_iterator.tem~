@@ -1,0 +1,332 @@
+// your btree iterator implementation goes here
+
+/*
+ *Overloading == operator to check if two 'btree_iterators are equal'
+ *
+ *@param iterator to compare to
+ *@return true or false whether or not the iterators are equal
+ */
+template <typename T>
+bool btree_iterator<T>::operator==(const btree_iterator& other) const {
+   bool equal = false;
+   //if the pointers are equal and the 'pointers' to the elements within the node are equal
+   if(this->pointee_ == other.pointee_ && this->elemPos_ == other.elemPos_) {
+      equal = true;
+   }
+   return equal;
+}
+
+
+/*
+ *overloading == operator to check if a btree_iterator and a const_btree_iterator are equal
+ *
+ *@param iterator to compare to
+ *@return true or false whether or not the iterators are equal
+ */
+template <typename T>
+bool btree_iterator<T>::operator==(const const_btree_iterator<T>& other) const {
+   bool equal = false;
+   //if the pointers are equal and the 'pointers' to the elements within the node are equal
+   if(this->pointee_ == other.pointee_ && this->elemPos_ == other.elemPos_) {
+      equal = true;
+   }
+   return equal;
+}
+
+
+/*
+ *Overloading dereference operator
+ *
+ *@return Return the element pointed by the 'iterator'
+ */
+template <typename T>
+typename btree_iterator<T>::reference btree_iterator<T>::operator*() const {
+   //cout << "element position: " << elemPos_ << endl;
+   return pointee_->element(elemPos_);
+}
+
+
+/**
+ *Overloading pre-increment ++ operator
+ *
+ */
+template <typename T>
+btree_iterator<T>& btree_iterator<T>::operator++() {
+   
+   
+   if(pointee_->hasChildAt(elemPos_ + 1)) {   //check if node element has a child to its right
+      pointee_ = pointee_->getChild(elemPos_ + 1); //move to right node
+      elemPos_ = 0; //point to the first element in a node
+
+      //go as far left as you can
+      while(pointee_->hasChildAt(0)) {      
+         pointee_ = pointee_->getChild(0);
+      }
+      
+   } else if(elemPos_ < pointee_->size() - 1) { //otherwise move to next element in node
+      ++elemPos_;
+   } else if(pointee_->hasParent() && elemPos_ == pointee_->size() - 1) {
+      tempElemPos_ = pointee_->getParentPos();  //using temporary pointer to check if we are
+      tempPointee_ = pointee_->getParent();     //at the end
+      
+      
+      while(tempPointee_->hasParent() && tempElemPos_ == tempPointee_->size()) { //transverse up 
+         tempElemPos_ = tempPointee_->getParentPos();       
+         tempPointee_ = tempPointee_->getParent();
+      }
+
+      //if reach root node and at the last element of the node
+      if(!tempPointee_->hasParent() && tempElemPos_ == tempPointee_->size()) {   
+         ++elemPos_;                                        
+      } else {
+         elemPos_ = pointee_->getParentPos();   //move back to parent position in node
+         pointee_ = pointee_->getParent();   //move up a node to parent node
+      }
+   //case for no children on last node
+   } else if(!pointee_->hasParent() && elemPos_ == pointee_->size() - 1) { 
+      ++elemPos_;
+   } 
+   
+   return *this;
+}
+
+
+/*
+ *Overloading pre-decrement -- operator
+ *
+ */
+template <typename T>
+btree_iterator<T>& btree_iterator<T>::operator--() {
+   
+   if(elemPos_ == pointee_->size()) {  //if at the end of the tree
+      --elemPos_;
+   } else if(pointee_->hasChildAt(elemPos_)) { //check if element has child to its left
+      pointee_ = pointee_->getChild(elemPos_); //move to right node
+      elemPos_ = pointee_->size() - 1; //point to the last element in a node
+
+      //go as far right as you can
+      while(pointee_->hasChildAt(pointee_->size())) {      
+         pointee_ = pointee_->getChild(pointee_->size());
+      }
+      
+   } else if(elemPos_ > 0) { //otherwise move to next element in node
+      --elemPos_;
+   } else if(pointee_->hasParent() && elemPos_ == 0) {
+      tempElemPos_ = pointee_->getParentPos();  //using temporary pointer to check if we are
+      tempPointee_ = pointee_->getParent();     //at the end
+      
+      
+      while(tempPointee_->hasParent() && tempElemPos_ == 0) { //transverse up 
+         tempElemPos_ = tempPointee_->getParentPos();       
+         tempPointee_ = tempPointee_->getParent();
+      }
+
+      //if reach root node and at the first element of the node
+      if(!tempPointee_->hasParent() && tempElemPos_ == 0) {   
+         --elemPos_;                                       
+      } else {
+         elemPos_ = pointee_->getParentPos() - 1;   //move back to parent position in node
+         pointee_ = pointee_->getParent();   //move up a node to parent node
+      }
+   //case for no children on last node
+   } else if(!pointee_->hasParent() && elemPos_ == 0) { 
+      --elemPos_;
+   } 
+   
+   return *this;
+}
+
+
+/**
+ *Overloading post increment operator ++
+ *
+ *@return Return the old position and then increment
+ */
+template <typename T>
+btree_iterator<T> btree_iterator<T>::operator++(int) {
+   btree_iterator<T> old = *this;   //creating copy of current iterator
+   ++(*this);     //incrementing current iterator
+   return old;    //return old position
+
+}
+
+
+/**
+ *overloading post decerement
+ *
+ *@return Return the old position then decrement
+ */
+template <typename T>
+btree_iterator<T> btree_iterator<T>::operator--(int) {
+   btree_iterator<T> old = *this;   //creating copy of current iterator
+   --(*this);  //decrement current iterator
+   return old; //return old position
+
+}
+
+
+//--------------------------------------------------------------------------------------
+//CONST_BTREE_ITERATOR
+//--------------------------------------------------------------------------------------
+/*
+ *Overloading == operator to check if two 'const_btree_iterators are equal'
+ *
+ *@param iterator to compare to
+ *@return true or false whether or not the iterators are equal
+ */
+template <typename T>
+bool const_btree_iterator<T>::operator==(const const_btree_iterator& other) const {
+   bool equal = false;
+   if(this->pointee_ == other.pointee_ && this->elemPos_ == other.elemPos_) {
+      equal = true;
+   }
+   return equal;
+}
+
+
+/*
+ *overloading == operator to check if a btree_iterator and a const_btree_iterator are equal
+ *
+ *@param iterator to compare to
+ *@return true or false whether or not the iterators are equal
+ */
+template <typename T>
+bool const_btree_iterator<T>::operator==(const btree_iterator<T>& other) const {
+   bool equal = false;
+   if(this->pointee_ == other.pointee_ && this->elemPos_ == other.elemPos_) {
+      equal = true;
+   }
+   return equal;
+}
+
+//overloading dereference operator
+//return the element pointed by the 'iterator'
+template <typename T>
+typename const_btree_iterator<T>::reference const_btree_iterator<T>::operator*() const {
+   return pointee_->element(elemPos_);
+}
+
+
+/**
+ *Overloading pre-increment ++ operator
+ *
+ */
+template <typename T>
+const_btree_iterator<T>& const_btree_iterator<T>::operator++() {
+   
+   
+   if(pointee_->hasChildAt(elemPos_ + 1)) {   //check if node element has a child to its right
+      pointee_ = pointee_->getChild(elemPos_ + 1); //move to right node
+      elemPos_ = 0; //point to the first element in a node
+
+      //go as far left as you can
+      while(pointee_->hasChildAt(0)) {      
+         pointee_ = pointee_->getChild(0);
+      }
+      
+   } else if(elemPos_ < pointee_->size() - 1) { //otherwise move to next element in node
+      ++elemPos_;
+   } else if(pointee_->hasParent() && elemPos_ == pointee_->size() - 1) {
+      tempElemPos_ = pointee_->getParentPos();  //using temporary pointer to check if we are
+      tempPointee_ = pointee_->getParent();     //at the end
+      
+      
+      while(tempPointee_->hasParent() && tempElemPos_ == tempPointee_->size()) { //transverse up 
+         tempElemPos_ = tempPointee_->getParentPos();       
+         tempPointee_ = tempPointee_->getParent();
+      }
+
+      //if reach root node and at the last element of the node
+      if(!tempPointee_->hasParent() && tempElemPos_ == tempPointee_->size()) {   
+         ++elemPos_;                                        
+      } else {
+         elemPos_ = pointee_->getParentPos();   //move back to parent position in node
+         pointee_ = pointee_->getParent();   //move up a node to parent node
+      }
+   //case for no children on last node
+   } else if(!pointee_->hasParent() && elemPos_ == pointee_->size() - 1) { 
+      ++elemPos_;
+   } 
+   
+   return *this;
+}
+
+
+/*
+ *Overloading pre-decrement -- operator
+ *
+ */
+template <typename T>
+const_btree_iterator<T>& const_btree_iterator<T>::operator--() {
+   
+   if(elemPos_ == pointee_->size()) {  //if at the end of the tree
+      --elemPos_;
+   } else if(pointee_->hasChildAt(elemPos_)) { //check if element has child to its left
+      pointee_ = pointee_->getChild(elemPos_); //move to right node
+      elemPos_ = pointee_->size() - 1; //point to the last element in a node
+
+      //go as far right as you can
+      while(pointee_->hasChildAt(pointee_->size())) {      
+         pointee_ = pointee_->getChild(pointee_->size());
+      }
+      
+   } else if(elemPos_ > 0) { //otherwise move to next element in node
+      --elemPos_;
+   } else if(pointee_->hasParent() && elemPos_ == 0) {
+      tempElemPos_ = pointee_->getParentPos();  //using temporary pointer to check if we are
+      tempPointee_ = pointee_->getParent();     //at the end
+      
+      
+      while(tempPointee_->hasParent() && tempElemPos_ == 0) { //transverse up 
+         tempElemPos_ = tempPointee_->getParentPos();       
+         tempPointee_ = tempPointee_->getParent();
+      }
+
+      //if reach root node and at the first element of the node
+      if(!tempPointee_->hasParent() && tempElemPos_ == 0) {   
+         //pointee_ = nullptr; 
+         --elemPos_;                                       
+      } else {
+         elemPos_ = pointee_->getParentPos() - 1;   //move back to parent position in node
+         pointee_ = pointee_->getParent();   //move up a node to parent node
+      }
+   //case for no children on last node
+   } else if(!pointee_->hasParent() && elemPos_ == 0) { 
+      //pointee_ = nullptr;
+      --elemPos_;
+   } 
+   
+   return *this;
+}
+
+
+/**
+ *Overloading post increment operator ++
+ *
+ *@return Return the old position and then increment
+ */
+template <typename T>
+const_btree_iterator<T> const_btree_iterator<T>::operator++(int) {
+   btree_iterator<T> old = *this;   //creating copy of current position
+   ++(*this);        //incrementing current position
+   return old;       //return old position
+
+}
+
+
+/**
+ *overloading post decerement
+ *
+ *@return Return the old position then decrement
+ */
+template <typename T>
+const_btree_iterator<T> const_btree_iterator<T>::operator--(int) {
+   btree_iterator<T> old = *this;   //creating copy of current position
+   --(*this);     //decrementing current position
+   return old;    //return old position
+
+}
+
+
+
+
